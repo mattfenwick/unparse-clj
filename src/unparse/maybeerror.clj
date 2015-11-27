@@ -42,7 +42,7 @@
       me))
 
 (defn mapError
-  [me f]
+  [f me]
   (if (= (:status me) "error")
       (error (f (:value me)))
       me))
