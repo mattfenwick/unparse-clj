@@ -111,7 +111,7 @@
                 (let [r ((:parse parser) tokens state)]
                   (cond
                     (= (:status r) "success")
-                      (recur (cons (:result (:value r)) vals) ; TODO use conj instead to put elements on back?
+                      (recur (conj vals (:result (:value r)))
                              (:rest (:value r))
                              (:state (:value r)))
                     (= (:status r) "failure") (good vals tokens state)
@@ -133,10 +133,10 @@
             (good vals tokens state)
             (let [r ((:parse (first ps)) tokens state)]
               (if (= "success" (:status r))
-                  (recur (cons (:result (:value r)) vals) ; TODO use conj instead to put elements on back?
-                         (:state (:value r))
+                  (recur (conj vals (:result (:value r)))
                          (:rest (:value r))
-                         (rest parsers))
+                         (:state (:value r))
+                         (rest ps))
                   r)))))))
 
 (defn appP

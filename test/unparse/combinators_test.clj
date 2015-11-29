@@ -33,7 +33,7 @@
       (let [parser ((:string iz1) "abc")
             v1 ((:parse parser) "abcdef" nil)
             v2 ((:parse parser) "abdef" nil)]
-        (is (= v1 (good "def" nil "abc")))
+        (is (= v1 (good (list \d \e \f) nil "abc")))
         (is (= v2 M/zero))))
 ; TODO need to test what this depends on first
 ;    (testing "not1"
