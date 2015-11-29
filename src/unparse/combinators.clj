@@ -49,7 +49,7 @@
             (let [r ((:parse parser) xs s)
                   val (:value r)]
               (if (= "success" (:status r))
-                  ((:parse (:result val)) (:rest val) (:state val))
+                  ((:parse (g (:result val))) (:rest val) (:state val))
                   r)))]
     (->Parser f)))
 
@@ -97,7 +97,7 @@
   (->Parser (fn [xs s]
               (let [r ((:parse parser) xs s)]
                 (cond
-                  (= "success" (:status r)) r
+                  (not (= "success" (:status r))) r
                   (predicate (:result (:value r))) r
                   :else maybeerror/zero)))))
 
@@ -133,7 +133,7 @@
             (good vals tokens state)
             (let [r ((:parse (first ps)) tokens state)]
               (if (= "success" (:status r))
-                  (recur (cons (:result (:value r))) ; TODO use conj instead to put elements on back?
+                  (recur (cons (:result (:value r)) vals) ; TODO use conj instead to put elements on back?
                          (:state (:value r))
                          (:rest (:value r))
                          (rest parsers))
@@ -190,7 +190,7 @@
               (let [r ((:parser parser) xs s)]
                 (cond
                   (= "error" (:status r)) r
-                  (= "success" (:status r)) zero
+                  (= "success" (:status r)) maybeerror/zero
                   :else (good nil xs s))))))
 
 (defn alt
@@ -200,13 +200,13 @@
   (->Parser (fn [xs s]
               (loop [ps parsers]
                 (if (empty? ps)
-                    zero
+                    maybeerror/zero
                     (let [r ((:parse (first ps)) xs s),
                           status (:status r)]
                       (cond
                         (= "success" status) r
                         (= "error" status) r
-                        :else (recur (rest parsers)))))))))
+                        :else (recur (rest ps)))))))))
 
 (defn optional
   [parser default_v]
@@ -251,7 +251,7 @@
                (checkParser "not1" parser)
                (seq2R (not0 parser) item))
         string (fn [elems] ; TODO is this necessary?  can I just do '(seq (map literal) elems)'?
-                 (seq2R (map literal elems) (pure elems)))
+                 (seq2R (apply seq (map literal elems)) (pure elems)))
         oneOf (fn [elems]
                 (let [elem-set (set elems)]
                   (satisfy (fn [x] (contains? elem-set x)))))]
