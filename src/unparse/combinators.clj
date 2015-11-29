@@ -1,4 +1,5 @@
 (ns unparse.combinators
+  (:refer-clojure :exclude [seq count get])
   (:require [unparse.maybeerror :as maybeerror]))
 
 ; wrapper around a callable of type `[t] -> s -> ME ([t], s, a)`.
@@ -85,6 +86,10 @@
   (checkFunction "updateState" g)
   (->Parser (fn [xs s] (good nil xs (g s)))))
 
+(def zero (->Parser (fn [_xs_ _s_] maybeerror/zero)))
+(def get (->Parser (fn [xs s] (good xs xs s))))
+(def getState (->Parser (fn [xs s] (good s xs s))))
+
 (defn check
   [predicate parser]
   (checkFunction "check" predicate)
@@ -115,9 +120,8 @@
 (defn many1
   [parser]
   (checkParser "many1" parser)
-  (check #(> (count %1) 0) (many0 parser)))
+  (check #(> (clojure.core/count %1) 0) (many0 parser)))
 
-; TODO figure out how to make this name not clash with the built-in 'seq'
 (defn seq
   [& parsers]
   (for [p parsers]
@@ -197,11 +201,12 @@
               (loop [ps parsers]
                 (if (empty? ps)
                     zero
-                    (let [status (:status ((:parse (first ps)) xs s))]
+                    (let [r ((:parse (first ps)) xs s),
+                          status (:status r)]
                       (cond
                         (= "success" status) r
                         (= "error" status) r
-                        (recur (rest parsers)))))))))
+                        :else (recur (rest parsers)))))))))
 
 (defn optional
   [parser default_v]
@@ -218,8 +223,8 @@
   (loop [vals [fst], seps [], ps pairs]
     (if (empty? ps)
         {:values vals :separators seps}
-        (recur (conj vals (get (first ps) 0)) ; TODO uh-oh, clash with built-in 'get'
-               (conj seps (get (first ps) 1))
+        (recur (conj vals (clojure.core/get (first ps) 0))
+               (conj seps (clojure.core/get (first ps) 1))
                (rest ps)))))
 
 (defn _pair
@@ -233,10 +238,6 @@
 (defn sepBy0
   [parser separator]
   (optional (sepBy1 parser separator) {:values [] :separators []}))
-
-(def zero (->Parser (fn [_xs_ _s_] maybeerror/zero)))
-(def get (->Parser (fn [xs s] (good xs xs s))))
-(def getState (->Parser (fn [xs s] (good s xs s))))
 
 (defn Itemizer
   [item]
@@ -252,7 +253,7 @@
         string (fn [elems] ; TODO is this necessary?  can I just do '(seq (map literal) elems)'?
                  (seq2R (map literal elems) (pure elems)))
         oneOf (fn [elems]
-                (let [elem-set (set elems)] ; TODO 'set' name clash
+                (let [elem-set (set elems)]
                   (satisfy (fn [x] (contains? elem-set x)))))]
     {:item item,
      :literal literal,
@@ -288,7 +289,7 @@
 
 (def basic (Itemizer (->Parser _item_basic)))
 (def position (Itemizer (->Parser _item_position)))
-(def count (Itemizer (->Parser _item_count))) ; TODO clash with built-in
+(def count (Itemizer (->Parser _item_count)))
 
 (defn run
   [parser input_string state]
