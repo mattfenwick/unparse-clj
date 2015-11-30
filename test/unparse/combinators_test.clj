@@ -236,4 +236,33 @@
         (is (= val1 M/zero))
         (is (= val2 (good (list \p \a \b \c) {} {:separators [], :values [\p]})))
         (is (= val3 (good (list \s \a \b \c) {} {:separators [], :values [\p]})))
-        (is (= val4 (good (list \a \b \c) {} {:separators [\s \t], :values [\p \q \q]})))))))
+        (is (= val4 (good (list \a \b \c) {} {:separators [\s \t], :values [\p \q \q]})))))
+    (testing "Lookahead"
+      (let [parser (C/lookahead ((:oneOf iz1) [2 3]))]
+        (is (= ((:parse parser) [2 3 4 5] 41)
+               (good [2 3 4 5] 41 2)))
+        (is (= ((:parse parser) [3 4 5] 41)
+               (good [3 4 5] 41 3)))
+        (is (= ((:parse parser) [4 5] nil)
+               M/zero))))
+    (testing "Not0"
+      (let [val (C/not0 ((:literal iz1) 2))]
+        (is (= ((:parse val) [2 3 4] {})
+               M/zero))
+        (is (= ((:parse val) [3 4 5] {})
+               (good [3 4 5] {} nil)))))
+    (testing "Commit"
+      (let [val (C/commit "bag-agg" ((:literal iz1) 2))]
+        (is (= ((:parse val) [2 3 4] "hi")
+               (good [3 4] "hi" 2)))
+        (is (= ((:parse val) [3 4 5] "hi")
+               (M/error "bag-agg")))))
+    (testing "Zero"
+      (is (= ((:parse C/zero) nil nil)
+             M/zero)))
+    (testing "Get"
+      (is (= ((:parse C/get) "abc" {})
+             (good "abc" {} "abc"))))
+    (testing "GetState"
+      (is (= ((:parse C/getState) "abc" 123)
+             (good "abc" 123 123))))))

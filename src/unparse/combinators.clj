@@ -187,7 +187,7 @@
   [parser]
   (checkParser "not0" parser)
   (->Parser (fn [xs s]
-              (let [r ((:parser parser) xs s)]
+              (let [r ((:parse parser) xs s)]
                 (cond
                   (= "error" (:status r)) r
                   (= "success" (:status r)) maybeerror/zero
