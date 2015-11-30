@@ -97,7 +97,78 @@
         (is (= ((:parse p1) [2 3 4] nil)
                (good [3 4] nil 2)))
         (is (= ((:parse p1) [3 3 4] nil)
-               (M/error \d)))))
+               (M/error \d)))))))
+
+(deftest test-errors
+  (testing "error combinators"
     (testing "Error"
       (let [v1 ((:parse (C/error "uh-oh")) "abc" 123)]
-        (is (= v1 (M/error "uh-oh")))))))
+        (is (= v1 (M/error "uh-oh")))))
+    (testing "CatchError"
+      (let [f1 (fn [e] (C/pure 3))
+            f2 (fn [e] (C/error "dead again"))]
+        (is (= ((:parse (C/catchError f1 (C/error "dead 1"))) "123" [2 4])
+               (good "123" [2 4] 3)))
+        (is (= ((:parse (C/catchError f1 (C/pure 18))) "123" [2 4])
+               (good "123" [2 4] 18)))
+        (is (= ((:parse (C/catchError f2 (C/error "dead 1"))) "123" [2 4])
+               (M/error "dead again")))))
+    (testing "MapError"
+      (let [f #(clojure.core/count %1)
+            v1 ((:parse (C/mapError f (C/error "abcdef"))) "123abc" nil)
+            v2 ((:parse (C/mapError f C/zero)) "123abc" nil)
+            v3 ((:parse (C/mapError f (C/pure 82))) "123abc" nil)]
+        (is (= v1 (M/error 6)))
+        (is (= v2 M/zero))
+        (is (= v3 (good "123abc" nil 82)))))))
+
+(deftest test-putstate
+  (testing "putting and state"
+    (testing "put"
+      (let [val (C/put "xyz")]
+        (is (= ((:parse val) "abc" [])
+               (good "xyz" [] nil)))))
+    (testing "putState"
+      (let [v1 ((:parse (C/putState 29)) "abc123" 2)]
+        (is (= v1 (good "abc123" 29 nil)))))
+    (testing "updateState"
+      (let [v1 ((:parse (C/updateState #(* %1 4))) "abc" 18)]
+        (is (= v1 (good "abc" 72 nil)))))))
+
+(deftest test-checkseq
+  (testing "check and sequencing"
+    (testing "Check"
+      (let [val (C/check #(> (clojure.core/count %1) 3) C/get)]
+        (is (= ((:parse val) "abcde" [])
+               (good "abcde" [] "abcde")))
+        (is (= ((:parse val) "abc" [])
+               M/zero))))
+    (testing "Many0"
+      (let [val (C/many0 ((:literal iz1) 3))]
+        (is (= ((:parse val) [4 4 4] {})
+               (good [4 4 4] {} [])))
+        (is (= ((:parse val) [3 3 4 5] {})
+               (good [4 5] {} [3 3])))))
+    (testing "Many1"
+      (let [val (C/many1 ((:literal iz1) 3))]
+        (is (= ((:parse val) [4 4 4] {})
+               M/zero))
+        (is (= ((:parse val) [3 3 4 5] {})
+               (good [4 5] {} [3 3])))))
+    (testing "Seq"
+      (let [val (C/seq (:item iz1) ((:literal iz1) 2) ((:literal iz1) 8))]
+        (is (= ((:parse val) [3 2 4] {})
+               M/zero))
+        (is (= ((:parse val) [3 2 8 16] {})
+               (good [16] {} [3 2 8])))))
+    (testing "App"
+      (let [parser (C/app (fn [x y z] (+ x (* y z)))
+                          (:item iz1)
+                          ((:satisfy iz1) #(> %1 2))
+                          (:item iz1))
+            v1 ((:parse parser) [1 2 3 4 5] "hi")
+            v2 ((:parse parser) [5 6 7 8 9] "bye")
+            v3 ((:parse parser) [5 6] "goodbye")]
+        (is (= v1 M/zero))
+        (is (= v2 (good [8 9] "bye" 48)))
+        (is (= v3 M/zero))))))
