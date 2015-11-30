@@ -170,5 +170,70 @@
             v2 ((:parse parser) [5 6 7 8 9] "bye")
             v3 ((:parse parser) [5 6] "goodbye")]
         (is (= v1 M/zero))
-        (is (= v2 (good [8 9] "bye" 48)))
-        (is (= v3 M/zero))))))
+        (is (= v2 (good [8 9] "bye" 47)))
+        (is (= v3 M/zero))))
+    (testing "AppP"
+      (let [parser (C/appP (C/pure (fn [x y z] (+ x (* y z))))
+                           (:item iz1)
+                           ((:satisfy iz1) #(> %1 2))
+                           (:item iz1))
+            v1 ((:parse parser) [1 2 3 4 5] "hi")
+            v2 ((:parse parser) [5 6 7 8 9] "bye")
+            v3 ((:parse parser) [5 6] "goodbye")]
+        (is (= v1 M/zero))
+        (is (= v2 (good [8 9] "bye" 47)))
+        (is (= v3 M/zero))))
+    (testing "AppP -- type error"
+      (is (thrown? Exception (C/appP (fn [x] x) (:item iz1)))))))
+
+(deftest test-more-combinators
+  (testing "more combinators"
+    (testing "Optional"
+      (let [parser (C/optional ((:literal iz1) 3) "blargh")
+            v1 ((:parse parser) [1 2 3] "hi")
+            v2 ((:parse parser) [3 2 1] "bye")]
+        (is (= v1 (good [1 2 3] "hi" "blargh")))
+        (is (= v2 (good [2 1] "bye" 3)))))
+; TODO remove these -- they're not needed for the Clojure library
+;    (testing "optional -- no value"
+;      (let [p (C/optional ((:literal iz1) 3))
+;            v1 ((:parse p) [3 2 1] nil)
+;            v2 ((:parse p) [1 2 3] nil)]
+;        (is (= v1 (good [2 1] nil 3)))
+;        (is (= v2 (good [1 2 3] nil nil)))))
+    (testing "Seq2R"
+      (let [val (C/seq2R ((:literal iz1) 2) ((:literal iz1) 3))]
+        (is (= ((:parse val) [4 5] {})
+               M/zero))
+        (is (= ((:parse val) [2 4 5] {})
+               M/zero))
+        (is (= ((:parse val) [2 3 4] {})
+               (good [4] {} 3)))))
+    (testing "Seq2L"
+      (let [val (C/seq2L ((:literal iz1) 2) ((:literal iz1) 3))]
+        (is (= ((:parse val) [4 5] {})
+               M/zero))
+        (is (= ((:parse val) [2 4 5] {})
+               M/zero))
+        (is (= ((:parse val) [2 3 4] {})
+               (good [4] {} 2)))))
+    (testing "SepBy0"
+      (let [parser (C/sepBy0 ((:oneOf iz1) "pq") ((:oneOf iz1) "st"))
+            val1 ((:parse parser) "abc" {})
+            val2 ((:parse parser) "ppabc" {})
+            val3 ((:parse parser) "psabc" {})
+            val4 ((:parse parser) "psqtqabc" {})]
+        (is (= val1 (good "abc" {} {:separators [], :values []})))
+        (is (= val2 (good (list \p \a \b \c) {} {:separators [], :values [\p]})))
+        (is (= val3 (good (list \s \a \b \c) {} {:separators [], :values [\p]})))
+        (is (= val4 (good (list \a \b \c) {} {:separators [\s \t], :values [\p \q \q]})))))
+    (testing "SepBy1"
+      (let [parser (C/sepBy1 ((:oneOf iz1) "pq") ((:oneOf iz1) "st"))
+            val1 ((:parse parser) "abc" {})
+            val2 ((:parse parser) "ppabc" {})
+            val3 ((:parse parser) "psabc" {})
+            val4 ((:parse parser) "psqtqabc" {})]
+        (is (= val1 M/zero))
+        (is (= val2 (good (list \p \a \b \c) {} {:separators [], :values [\p]})))
+        (is (= val3 (good (list \s \a \b \c) {} {:separators [], :values [\p]})))
+        (is (= val4 (good (list \a \b \c) {} {:separators [\s \t], :values [\p \q \q]})))))))

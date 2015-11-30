@@ -223,8 +223,8 @@
   (loop [vals [fst], seps [], ps pairs]
     (if (empty? ps)
         {:values vals :separators seps}
-        (recur (conj vals (clojure.core/get (first ps) 0))
-               (conj seps (clojure.core/get (first ps) 1))
+        (recur (conj vals (clojure.core/get (first ps) 1))
+               (conj seps (clojure.core/get (first ps) 0))
                (rest ps)))))
 
 (defn _pair
