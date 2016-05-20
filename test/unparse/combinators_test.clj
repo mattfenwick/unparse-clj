@@ -35,11 +35,10 @@
             v2 ((:parse parser) "abdef" nil)]
         (is (= v1 (good (list \d \e \f) nil "abc")))
         (is (= v2 M/zero))))
-; TODO need to test what this depends on first
-;    (testing "not1"
-;      (let [val ((:not1 iz1) ((:literal iz1) 2))]
-;        (is (= ((:parse val) [2 3 4] {}) M/zero))
-;        (is (= ((:parse val) [3 4 5] {}) (good [4 5] {} 3)))))
+    (testing "not1"
+      (let [val ((:not1 iz1) ((:literal iz1) 2))]
+        (is (= ((:parse val) [2 3 4] {}) M/zero))
+        (is (= ((:parse val) [3 4 5] {}) (good [4 5] {} 3)))))
     (testing "oneOf"
       (let [p ((:oneOf iz1) "abc")]
         (is (= ((:parse p) "cqrs" nil) (good (list \q \r \s) nil \c)))
